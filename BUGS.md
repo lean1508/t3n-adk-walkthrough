@@ -123,7 +123,7 @@ and no way to get a good one short of re-registering.
 The SDK's error is good — it validates and redacts:
 
 ```
-Error: Invalid Ethereum private key (INVALID_ARGUMENT): 0x3224…6abs [redacted]
+Error: Invalid Ethereum private key (INVALID_ARGUMENT): 0x…… [redacted]
 ```
 
 Credit where due: redacting the key in the error message is the right call and
