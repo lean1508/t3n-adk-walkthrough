@@ -1,0 +1,67 @@
+/// z-agent-approvals — a verifiable record of human approvals for agent actions.
+///
+/// The problem it solves. An autonomous agent that can act on a person's behalf
+/// needs an answer to one question before every irreversible action: *did a
+/// human actually approve this exact thing?* Keeping that answer in the agent's
+/// own database is circular — the component being constrained is the one
+/// holding the evidence. Putting it in a TEE contract makes the approval
+/// tamper-evident and auditable by a third party.
+///
+/// Three operations, deliberately minimal:
+///   record-approval — a human records approval for one specific action
+///   check-approval  — the agent asks whether it may proceed (and it cannot lie
+///                     to itself: the answer comes from outside its process)
+///   list-approvals  — the audit trail, for review after the fact
+///
+/// Host capabilities imported, and why each one:
+///   tenant-context — the tenant DID, used to build the KV map name at runtime
+///   logging        — an audit line per operation
+///   kv-store       — where approvals live
+///
+/// No HTTP is imported on purpose. This contract never reaches the network, so
+/// it cannot exfiltrate an approval record even if its logic were wrong: the
+/// WIT imports *are* the capability set, so the absence is enforced by the host
+/// rather than promised by the code.
+package z:agent-approvals@0.1.0;
+
+world agent-approvals {
+    import host:tenant/tenant-context@1.0.0;
+    import host:interfaces/logging@2.1.0;
+    import host:interfaces/kv-store@2.1.0;
+
+    export contracts;
+}
+
+interface contracts {
+    /// Standard 3-field envelope used by every node-callable contract.
+    /// `input`        — JSON arguments for this function, as bytes
+    /// `user-profile` — always None for tenant contracts
+    /// `context`      — node-minted DynamicContext (trusted), as bytes
+    record generic-input {
+        input:        option<list<u8>>,
+        user-profile: option<list<u8>>,
+        context:      option<list<u8>>,
+    }
+
+    /// Record a human's approval of one specific agent action.
+    /// Input  (JSON): { action-id, approver, scope, note? }
+    /// Output (JSON): { recorded: true, action-id, approver, scope }
+    ///
+    /// `action-id` identifies the action precisely enough that approving one
+    /// thing cannot be replayed as approval of another — in our case the URL of
+    /// the GitHub issue the agent is about to open a pull request against.
+    record-approval: func(req: generic-input) -> result<list<u8>, string>;
+
+    /// Ask whether a given action was approved, and for what scope.
+    /// Input  (JSON): { action-id, scope }
+    /// Output (JSON): { approved, action-id, scope, approver?, note? }
+    ///
+    /// `scope` is checked, not just presence: approval to *prepare* a change is
+    /// not approval to *publish* it. That distinction is the whole point.
+    check-approval: func(req: generic-input) -> result<list<u8>, string>;
+
+    /// The audit trail: every approval recorded, in key order.
+    /// Input  (JSON): { limit? }
+    /// Output (JSON): { approvals: [...], count }
+    list-approvals: func(req: generic-input) -> result<list<u8>, string>;
+}

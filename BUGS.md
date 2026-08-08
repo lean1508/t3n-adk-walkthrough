@@ -244,9 +244,49 @@ is not the first impression you want), and the vulnerability class — writing
 files outside the extraction directory — is a poor fit for a product built on
 trusted execution.
 
-## Step 3 — Walkthrough: write, build, register, invoke, test the contract
+## Step 3 — Walkthrough: writing and building a contract
 
-_To be filled in during the run._
+### D-6 · `cargo test` fails out of the box because the target is pinned
+**Type:** documentation / template · **Severity:** low, but it hits everyone
+
+The reference repo ships a `.cargo/config.toml` pinning `wasm32-wasip2` as the
+default target. That is right for `cargo build` — it makes the documented build
+command work unmodified — but it also makes `cargo test` compile the tests to
+WASM and then try to run the `.wasm` as a binary:
+
+```
+error: test failed, to rerun pass `--lib`
+Caused by: could not execute process (...)/z_agent_approvals-*.wasm (never executed)
+Caused by: Permission denied (os error 13)
+```
+
+The fix is to name the host target explicitly:
+
+```bash
+cargo test --release --target x86_64-unknown-linux-gnu
+```
+
+Worth one line in the walkthrough, because the reference `Cargo.toml` keeps
+`crate-type = ["cdylib", "lib"]` precisely so that "the business logic stays
+unit-testable natively". The template invites you to write native tests and
+then the default configuration stops you from running them.
+
+### O-1 · Credit where due: the capability model is the best part
+**Type:** observation, not a bug
+
+Having a contract's capability set *be* its WIT imports, enforced by the host
+at load time, is a genuinely good design. It let us make a claim a reader can
+check — *this ledger cannot reach the network* — by reading forty lines of WIT
+instead of auditing our Rust. Most platforms would have made that a paragraph
+in a README.
+
+Flagging it because the docs undersell it: the capability pages are filed under
+**tips**, which is not where a first-time reader goes looking for the security
+model. This deserves to be in the ADK overview, above the fold.
+
+## Step 4 — Register, invoke and test on the network
+
+_Pending._
 
 ---
 

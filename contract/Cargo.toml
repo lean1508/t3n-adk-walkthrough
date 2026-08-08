@@ -1,0 +1,24 @@
+[package]
+name = "z-agent-approvals"
+version = "0.1.0"
+edition = "2021"
+description = "Verifiable record of human approvals for agent actions, as a Terminal 3 TEE contract"
+license = "MIT"
+publish = false
+
+# cdylib is what makes the wasm32-wasip2 target emit a WASM *component*
+# rather than a bare module. "lib" stays so the logic is unit-testable natively.
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+# Deliberately minimal: no serde. The inputs are a handful of flat string
+# fields, and in a TEE contract every dependency is both attack surface and
+# artifact size.
+wit-bindgen = { version = "0.49", default-features = false, features = ["macros", "realloc"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
