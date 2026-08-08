@@ -1,0 +1,13 @@
+# Credenciales: NUNCA versionar
+.env
+.env.*
+*.key
+t3n-key*
+terminal3_key*
+secrets/
+
+node_modules/
+dist/
+target/
+*.wasm
+.DS_Store
