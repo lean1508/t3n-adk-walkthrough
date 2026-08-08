@@ -1,0 +1,18 @@
+tenant: did:t3n:c0e83772d154449476e743f694de71bf8cb94e5b
+map 'approvals' creado (visibility='private', acl=[508])
+=== 1. sin aprobacion, el agente NO debe poder publicar ===
+  check-approval (239 ms) -> {"approved":false,"action-id":"https://github.com/tscircuit/tscircuit/issues/999","scope":"publish"}
+=== 2. el humano aprueba SOLO 'prepare' ===
+  record-approval (937 ms) -> {"recorded":true,"action-id":"https://github.com/tscircuit/tscircuit/issues/999","approver":"leandro","scope":"prepare"}
+=== 3. 'prepare' aprobado, pero 'publish' sigue sin estarlo ===
+ (esta es la propiedad que justifica el contrato)
+  check-approval (258 ms) -> {"approved":true,"action-id":"https://github.com/tscircuit/tscircuit/issues/999","scope":"prepare","approver":"leandro","note":"revisado en el reporte del scout"}
+  check-approval (248 ms) -> {"approved":false,"action-id":"https://github.com/tscircuit/tscircuit/issues/999","scope":"publish"}
+=== 4. el humano aprueba tambien 'publish' ===
+  record-approval (246 ms) -> {"recorded":true,"action-id":"https://github.com/tscircuit/tscircuit/issues/999","approver":"leandro","scope":"publish"}
+  check-approval (238 ms) -> {"approved":true,"action-id":"https://github.com/tscircuit/tscircuit/issues/999","scope":"publish","approver":"leandro","note":"diff revisado, 3 archivos"}
+=== 5. el rastro de auditoria ===
+  list-approvals (271 ms) -> {"approvals":[{"action-id":"https://github.com/tscircuit/tscircuit/issues/999","scope":"prepare","record":{"approver":"leandro","scope":"prepare","note":"revisado en el reporte del scout"}},{"action-id":"https://github.com/tscircuit/tscircuit/issues/999","scope":"publish","record":{"approver":"leandro","scope":"publish","note":"diff revisado, 3 archivos"}}],"count":2}
+=== 6. entradas invalidas: debe fallar con un motivo claro ===
+  record-approval (260 ms) ERROR: RPC Error: contract error: record-approval: 'action-id' and 'scope' must be non-empty [c2c85bf5-165f-45f0-8fb0-2cafe1c0dfeb]
+  check-approval (245 ms) ERROR: RPC Error: contract error: check-approval: missing required field 'scope' [9415c963-d3ac-4069-b8de-ae7d5966e7c3]

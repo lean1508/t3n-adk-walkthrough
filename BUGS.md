@@ -286,11 +286,160 @@ model. This deserves to be in the ADK overview, above the fold.
 
 ## Step 4 — Register, invoke and test on the network
 
-_Pending._
+### D-7 · `tenant.me()` is in the docs but not in the SDK
+**Type:** documentation bug · **Severity:** medium
+**Where:** `/developers/adk/get-started/prerequisites/set-up-dev-env`
+
+The Set Up Dev Env page ends with a liveness check:
+
+```typescript
+await tenant.me(); // throws if something's wrong; confirms the client actually works
+```
+
+`me()` does not exist on `TenantClient` in `@terminal3/t3n-sdk@4.30.0`:
+
+```
+TypeError: tenant.me is not a function
+```
+
+The class exposes `tenant`, `maps`, `contracts`, `token`, plus `admitForOrg`,
+`canonicalName`, `executeControl` and friends — no `me`. This is the last line
+of the page every developer runs before moving on to contracts, so it fails at
+the worst possible moment: right after a long setup, with nothing built yet to
+suggest whether the problem is you or the SDK.
+
+**Workaround** — any real read works as a liveness check:
+
+```typescript
+const contracts = await tenant.contracts.list();   // [] on a fresh tenant
+```
+
+This looks like the same drift the reference page warns about in its
+"Observed in community code only" section (D-4). Worth a docs test that
+type-checks the published snippets against the shipped `.d.ts`.
+
+### B-4 · `maps.create` warns about a footgun and then crashes on it
+**Type:** SDK bug · **Severity:** medium
+
+Calling `maps.create({ tail })` without `readers` produces a good warning
+immediately followed by a useless crash:
+
+```
+[t3n-sdk] maps.create("approvals"): no `readers` specified — the map will be
+created with a deny-all read policy, so no one (including you) can read it.
+Pass `readers` explicitly (e.g. "all" or { only: [...] }), or { only: [] } to
+deliberately make it write-only.
+
+TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+```
+
+The SDK clearly knows the field is missing — it says so, in detail. Then
+something downstream calls `.toLowerCase()` on an absent value and throws a
+`TypeError` that names neither the field nor the call.
+
+Two things worth separating here. The **warning text is excellent**: it
+explains the consequence, not just the omission, and it gives three concrete
+options. That is better than most SDKs manage. The problem is only that the
+code path behind it does not survive the case it warns about. The same is true
+of `visibility`, which is also required but typed as bare `string` in the
+`.d.ts` — we found `"private"` works by trying it.
+
+**Suggestion:** validate `MapCreateInput` up front and throw one error naming
+the missing fields, or apply the deny-all default the warning already
+describes. Either is fine; crashing after correctly diagnosing the problem is
+not.
+
+### D-8 · Nothing tells you the contract needs a map ACL before it can run
+**Type:** documentation · **Severity:** medium — this is the step that blocks you
+
+A registered contract that writes to a tenant KV map does not work until a map
+exists **with an ACL naming the contract's numeric id**. Until then every call
+fails at the host boundary:
+
+```
+access denied: TenantContract(did:t3n:c0e8…/508) cannot write map
+"z:c0e8…:approvals"
+```
+
+The register page mentions in passing that the id is "required in the next
+setup step when you create map ACLs", but the walkthrough never shows that
+step, and the ACL shape (`writers: { only: [contractId] }`) is only discoverable
+from the `.d.ts`. This is the single place where a working contract looks
+broken, and the error — while accurate and pleasantly specific about *which*
+principal was denied on *which* map — does not say "create the map".
+
+**What worked:**
+
+```typescript
+await tenant.maps.create({
+  tail: "approvals",
+  visibility: "private",
+  writers: { only: [contractId] },   // the id from contracts.register()
+  readers: { only: [contractId] },
+});
+```
+
+**Suggestion:** a short "4. Create the map your contract writes to" between
+register and invoke would remove the only genuine wall in the walkthrough.
+
+### O-2 · Credit: the errors from inside the contract come back intact
+**Type:** observation
+
+Once past the ACL, the developer experience is good. Errors raised inside the
+Rust contract arrive at the caller with the message preserved and a correlation
+id attached:
+
+```
+RPC Error: contract error: check-approval: missing required field 'scope'
+[9415c963-d3ac-4069-b8de-ae7d5966e7c3]
+```
+
+That is our own string, from our own `Err`, across a WASM boundary, a TEE and
+an RPC hop — and the id makes a support conversation possible. Given how much
+of this report is about error handling, it is worth saying that this part is
+right.
+
+Latencies were unremarkable in the good sense: registration 892 ms for an
+83 KB component, and contract calls between 238 and 937 ms.
 
 ---
 
 ## Summary
 
-_Counts and the short list of what would most improve the onboarding, written
-once the run is complete._
+Fifteen entries: **9 documentation issues**, **4 product/SDK bugs**, and **2
+things worth crediting**. The walkthrough was completed end to end — first
+authenticated call, own contract written, compiled, registered as contract id
+508, invoked and tested on testnet.
+
+### The three that cost the most time
+
+| | What | Why it hurts |
+|---|---|---|
+| **B-1** | The Quickstart snippet omits the required `trustAnchor` and crashes | It is the first code anyone runs, and the easiest fix disables MITM protection |
+| **D-8** | Nothing says a contract needs a map ACL naming its contract id | The only real wall; a working contract looks broken |
+| **D-7** | `tenant.me()` is documented but does not exist | Fails at the end of setup, before you have built anything to blame |
+
+### If only three things get fixed
+
+1. **Add `trustAnchor` to the Quickstart snippet** with one line about what the
+   unsafe opt-out gives up. Cheapest fix here, and the only one with a security
+   consequence.
+2. **Add a "create the map your contract writes to" step** between register and
+   invoke, showing `writers: { only: [contractId] }`. Removes the wall.
+3. **Type-check the published snippets against the shipped `.d.ts`.** B-1, D-7
+   and the `visibility: string` type are all the same class of drift, and a CI
+   check would have caught all three.
+
+### What is genuinely good, and we mean it
+
+The **capability model** (O-1) — a contract's permissions *being* its WIT
+imports, enforced at load time — let us make a claim a reader can verify in
+forty lines of WIT rather than by auditing our Rust. The **error propagation**
+(O-2) brings contract errors back intact with a correlation id. And the
+**warning text** in `maps.create` explains consequences rather than just naming
+a missing field, which is rarer than it should be.
+
+The gap between how carefully the SDK's type documentation is written and how
+stale the published snippets are is the striking thing about this onboarding.
+The knowledge is clearly there — it just is not in the pages a newcomer reads
+first.

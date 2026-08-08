@@ -1,0 +1,9 @@
+autenticado como: did:t3n:c0e83772d154449476e743f694de71bf8cb94e5b
+TenantClient listo. nodo: https://cn-api.sg.testnet.t3n.terminal3.io
+contratos ya registrados: []
+wasm: 83295 bytes desde ../contract/target/wasm32-wasip2/release/z_agent_approvals.wasm
+REGISTRADO z:c0e83772d154449476e743f694de71bf8cb94e5b:agent-approvals -> contract id 508  (892 ms)
+respuesta completa: {
+  "name": "z:c0e83772d154449476e743f694de71bf8cb94e5b:agent-approvals",
+  "contract_id": 508
+}

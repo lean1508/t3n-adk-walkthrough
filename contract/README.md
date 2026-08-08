@@ -77,6 +77,11 @@ target/wasm32-wasip2/release/z_agent_approvals.wasm   83,295 bytes
 
 ## Status
 
-Written, unit-tested and compiled to a WASM component. Registration, invocation
-and on-network testing (walkthrough steps 3–5) are the remaining work, and
-whatever we find there will be added to `BUGS.md` in the same way.
+Complete. Registered on testnet as **contract id 508**
+(`z:c0e83772d154449476e743f694de71bf8cb94e5b:agent-approvals`), invoked and
+tested — see [`../quickstart/salida-invoke.txt`](../quickstart/salida-invoke.txt)
+for the full session output.
+
+Getting from *registered* to *running* needed one step the walkthrough never
+mentions: a map created with an ACL naming the contract id. Written up as D-8
+in [`../BUGS.md`](../BUGS.md).
