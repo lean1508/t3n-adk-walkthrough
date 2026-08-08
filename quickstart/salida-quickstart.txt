@@ -1,0 +1,5 @@
+loadWasmComponent(): 108 ms
+direccion derivada de la key: 0x344fa5a8680ca5253f576cf0390d071aa880d278
+handshake(): 637 ms
+authenticate(): 1310 ms
+Connected as: did:t3n:c0e83772d154449476e743f694de71bf8cb94e5b
